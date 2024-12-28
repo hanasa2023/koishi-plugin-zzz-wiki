@@ -1,6 +1,15 @@
 import {} from 'koishi-plugin-puppeteer'
 import {} from '@koishijs/plugin-database-sqlite'
 import { Context, Schema } from 'koishi'
+import { ZZZWikiData } from './type'
+import { ZZZWIKIService } from './service'
+import { Translator, zhToEn } from './utils'
+
+declare module 'koishi' {
+  interface Tables {
+    zzz_wiki: ZZZWikiData
+  }
+}
 
 export const name = 'zzz-wiki'
 export const inject = {
@@ -13,59 +22,59 @@ export const Config: Schema<Config> = Schema.object({})
 
 export async function apply(ctx: Context) {
   const baseUrl = 'https://miyabi-cdn.hanasaki.tech'
-  const translate = {
-    代理人: 'agent',
-    音擎: 'weapon',
-    邦布: 'bangbu',
-    驱动盘: 'cd',
-    敌人: 'enemy',
-    材料: 'material',
-    地图: 'map',
-    委托: 'assign',
-    成就: 'achievement',
-    街道: 'street',
-    录像带: 'record',
-  }
 
-  // TODO: 创建数据库
-  //从本地加载翻译json，若本地没有则从网络加载
-  let translateJson: { [x: string]: { [x: string]: { [x: string]: any } } }
+  ctx.model.extend('zzz_wiki', {
+    id: 'unsigned',
+    name: 'string',
+    aliasName: 'string',
+    icon: 'string',
+  })
+
   ctx.on('ready', async () => {
-    if (!translateJson) {
-      ctx.logger.info('本地没有翻译json，从网络下载')
-      translateJson = await (
-        await fetch(`${baseUrl}/data/name-id-mapping.json`)
-      ).json()
+    try {
+      const wiki = new ZZZWIKIService(ctx)
+      await wiki.upsertData()
+    } catch (error) {
+      ctx.logger.error('Database initialization error:', error)
     }
   })
 
+  // TODO: 创建数据库
+  //从本地加载翻译json，若本地没有则从网络加载
+
   ctx
-    .command('zzz图鉴 [name:string] 查看zzz图鉴')
+    .command('zzz图鉴 查看zzz图鉴')
     .option('list', '-l 查看可用图鉴列表')
     .option('update', '-u 更新插件数据')
     .option('card', '-c <value:string> 查看图鉴卡片')
-    .action(({ options }, arg) => {
+    .action(async ({ options }, arg) => {
       if (arg) {
-        if (translate[arg]) {
-          return <img src={`${baseUrl}/images/${translate[arg]}/total.png`} />
+        if (Translator.has(arg)) {
+          return (
+            <img
+              src={`${baseUrl}/images/${Translator.translate(arg)}/total.png`}
+            />
+          )
         } else {
           return '图鉴不存在'
         }
       }
 
       if (options.list) {
-        const list = Object.keys(translate)
+        const list = Object.keys(zhToEn)
         return '可用图鉴列表：\n' + list.join('\n')
       }
 
-      // TODO: 重写card
       if (options.card) {
-        ctx.logger.info(translateJson)
+        if (!Translator.has(options.card)) {
+          return '图鉴卡片不存在'
+        }
+        const info = await ctx.database.get('zzz_wiki', {
+          aliasName: options.card,
+        })
         return (
           <img
-            src={`${baseUrl}/images/agent/${
-              translateJson['aliasToId']['agent'][options.card]
-            }.png`}
+            src={`${baseUrl}/images/${Translator.translate(options.card)}/${info[0].id}.png`}
           />
         )
       }
