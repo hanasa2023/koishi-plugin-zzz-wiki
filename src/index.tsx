@@ -23,12 +23,20 @@ export const Config: Schema<Config> = Schema.object({})
 export async function apply(ctx: Context) {
   const baseUrl = 'https://miyabi-cdn.hanasaki.tech'
 
-  ctx.model.extend('zzz_wiki', {
-    id: 'unsigned',
-    name: 'string',
-    aliasName: 'string',
-    icon: 'string',
-  })
+  ctx.model.extend(
+    'zzz_wiki',
+    {
+      contentId: 'unsigned',
+      name: 'string',
+      aliasName: 'string',
+      icon: 'string',
+      type: 'string',
+    },
+    {
+      primary: 'contentId',
+      autoInc: false,
+    }
+  )
 
   ctx.on('ready', async () => {
     try {
@@ -43,7 +51,7 @@ export async function apply(ctx: Context) {
   //从本地加载翻译json，若本地没有则从网络加载
 
   ctx
-    .command('zzz图鉴 查看zzz图鉴')
+    .command('zzz图鉴 [type: string] 查看zzz图鉴')
     .option('list', '-l 查看可用图鉴列表')
     .option('update', '-u 更新插件数据')
     .option('card', '-c <value:string> 查看图鉴卡片')
@@ -66,17 +74,16 @@ export async function apply(ctx: Context) {
       }
 
       if (options.card) {
-        if (!Translator.has(options.card)) {
-          return '图鉴卡片不存在'
-        }
         const info = await ctx.database.get('zzz_wiki', {
           aliasName: options.card,
         })
-        return (
-          <img
-            src={`${baseUrl}/images/${Translator.translate(options.card)}/${info[0].id}.png`}
-          />
-        )
+        if (!info.length) {
+          return '图鉴卡片不存在'
+        }
+        const url = `${baseUrl}/images/${Translator.translate(info[0].type)}/${
+          info[0].contentId
+        }.png`
+        return <img src={url} />
       }
     })
 }

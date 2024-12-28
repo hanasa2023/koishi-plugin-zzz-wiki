@@ -1,8 +1,9 @@
 export interface ZZZWikiData {
-  id: number
+  contentId: number
   name: string
   aliasName: string
   icon: string
+  type: string
 }
 
 export interface ZZZWikiCharacter extends ZZZWikiData {
