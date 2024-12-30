@@ -1,6 +1,6 @@
 // 中文到英文的映射
 export const zhToEn = {
-  代理人: 'agent',
+  代理人: 'character',
   音擎: 'weapon',
   邦布: 'bangbu',
   驱动盘: 'cd',
